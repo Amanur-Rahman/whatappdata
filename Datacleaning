@@ -1,0 +1,95 @@
+#import packages
+
+import re
+import pandas as pd
+import seaborn
+import matplotlib.pyplot as plt
+
+
+#Indentify Date in Whatsapp Messages
+
+def startsWithDateTime(s):
+    pattern = '^.*\[([0-9]+/[0-9]+/[0-9]+),\s([0-9]+:[0-9]+:[0-9]+)\s(AM|PM)\]'
+    
+    result = re.match(pattern, s)
+    if result:
+        return True
+    return False
+    
+#Identify  Author in Whatsapp Messages
+
+def startsWithAuthor(s):
+    patterns = [
+        '([\w]+):',                       
+        '([\w]+[\s]+[\w]+):',              
+        '([\w]+[\s]+[\w]+[\s]+[\w]+):'   
+    ]
+    pattern = '^' + '|'.join(patterns)
+    result = re.match(pattern, s)
+    if result:
+        return True
+    return False
+   
+# The main function getDataPoint will give us a tabular data with Date, Time, Author and Message
+
+def getData(line):
+    
+    #ourline= [13/2/20, 12:36:49 PM] Kev Campbell: Must have heard that you crushed it in the case comp yesterday 😉
+    
+    splitLine = line.split('] ') # splitLine = ['[13/2/20, 12:36:49 PM', 'Kev Campbell: Must have heard that you crushed it in the case comp yesterday 😉'']
+    
+    dateTime = splitLine[0] # dateTime = '[13/2/20, 12:36:49 PM'
+    
+    Time_X = dateTime.split('[') # to clear the '[' from time
+    
+    date, time = Time_X[1].split(',') # date = '13/2/20'; time = '12:36:49 PM'
+    
+    
+    message = ' '.join(splitLine[1:]) # message = 'Kev Campbell: Must have heard that you crushed it in the case comp yesterday 😉'
+    
+    if startsWithAuthor(message): # True
+        splitMessage = message.split(':') # splitMessage = ['Kev Campbell', 'Must have heard that you crushed it in the case comp yesterday 😉']
+        author = splitMessage[0] # author = 'Kev Campbell'
+        message = ' '.join(splitMessage[1:]) # message = 'Must have heard that you crushed it in the case comp yesterday 😉
+    else:
+        author = None
+    return date, time, author, message
+    
+    
+    
+# List to keep track of data so it can be used by a Pandas dataframe   
+
+parsedData = [] 
+
+#put any whatsapp data
+conversationPath = 'xyz.txt' 
+
+
+with open(conversationPath, encoding="utf-8") as fp:
+    fp.readline() # Skipping first line of the file (usually contains information about end-to-end encryption)
+        
+    messageBuffer = [] # Buffer to capture intermediate output for multi-line messages
+    date, time, author = None, None, None # Intermediate variables to keep track of the current message being processed
+
+#Time to loop in each messages    
+    while True:
+        line = fp.readline()
+        if not line: # Stop reading further if end of file has been reached
+            break
+        line = line.strip() # Guarding against erroneous leading and trailing whitespaces
+
+        if startsWithDateTime(line): # If a line starts with a Date Time pattern, then this indicates the beginning of a new message
+            if len(messageBuffer) > 0: # Check if the message buffer contains characters from previous iterations
+                parsedData.append([date, time, author, ' '.join(messageBuffer)]) # Save the tokens from the previous message in parsedData
+            messageBuffer.clear() # Clear the message buffer so that it can be used for the next message
+            date, time, author, message = getData(line) # Identify and extract tokens from the line
+            messageBuffer.append(message) # Append message to buffer
+        else:
+            messageBuffer.append(line) # If a line doesn't start with a Date Time pattern, then it is part of a multi-line message. So, just append to buffer
+ 
+df = pd.DataFrame(parsedData, columns=['Date', 'Time', 'Author', 'Message'])
+
+df.to_csv('xyz.csv', index= False)
+
+
+ 
