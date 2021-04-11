@@ -1,7 +1,7 @@
-# whatappdata
 
 
-File: Datacleaning:
+
+#File: Datacleaning:
 
 A python data cleaning tool to transform whatsapp messages into a tabular form
 
@@ -13,9 +13,9 @@ Talbe will have
 
 From the panda dataframe text analytics functionalities can be performed.
 
-File: Topic Modelling
+#File: Topic Modelling
 
-The code uses LDA to find the top topics dicussed in the MBA chat
+The code uses LDA to find the top topics dicussed in the whatsapp chat.
 
 
 This code can be used on any whatsapp messages to find insights. Most Commonly:
