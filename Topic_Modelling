@@ -1,0 +1,85 @@
+import nltk
+from nltk.corpus import stopwords 
+from nltk.stem import WordNetLemmatizer
+
+#Removing Memes and Gift
+df = df.dropna(subset=['Author'])
+df= df.loc[~df['Message'].str.contains('‎')]
+df
+
+#Cleaning Data
+
+stop_words = set(stopwords.words('english') + stopwords.words('spanish'))
+ps = nltk.PorterStemmer ()
+lemmer = WordNetLemmatizer()
+
+def preprocess(x):
+    # Lower case
+    x = x.lower()
+    
+    # Remove punctuation
+    x = re.sub(r'[^\w\s]', '', x)
+    
+    # Remove non-unicode
+    #x = unidecode.unidecode(x)
+    
+    # Remove numbers
+    x = re.sub(r'\d+', '', x)
+    
+    
+    #x = [ps.stem(w) for w in x.split() if w not in stop_words]
+    
+    # Remove stopwords and lemmatize
+    x = [lemmer.lemmatize(w) for w in x.split() if w not in stop_words]
+    return ' '.join(x) 
+    
+    
+#import NLP packages
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+vectorizer = TfidfVectorizer(max_df=0.1, min_df=0.005, 
+                             max_features=1000, ngram_range=[1,3])
+dtm = vectorizer.fit_transform(df['Clean_Message'])
+print(dtm.shape)
+
+
+
+#Using LDA
+from sklearn.decomposition import LatentDirichletAllocation
+
+lda_model = LatentDirichletAllocation(n_components=10,
+                                      doc_topic_prior=None,
+                                      topic_word_prior=None,
+                                      max_iter=200, 
+                                      learning_method='batch', 
+                                      random_state=123,
+                                      n_jobs=2,
+                                      verbose=0)
+lda_output = lda_model.fit(dtm)
+
+# Log Likelyhood: Higher the better
+ll = lda_model.score(dtm)
+
+# Perplexity: Lower the better. Perplexity = exp(-1. * log-likelihood per word)
+perp = lda_model.perplexity(dtm)
+
+# Theta = document-topic matrix
+# Beta = components_ = topic-term matrix
+theta = pd.DataFrame(lda_model.transform(dtm))
+beta = pd.DataFrame(lda_model.components_)
+
+theta.head()
+beta.head()
+
+# Build Topic Summary
+feature_names = vectorizer.get_feature_names()
+weight = theta.sum(axis=0)
+support50 = (theta > 0.5).sum(axis=0)
+support10 = (theta > 0.1).sum(axis=0)
+termss = list()
+for topic_id, topic in enumerate(lda_model.components_):
+    terms = " ".join([feature_names[i] for i in topic.argsort()[:-6 - 1:-1]])
+    termss.append(terms)
+topic_summary = pd.DataFrame({'TopicID': range(0, len(termss)), "Support50": support50, "Support10": support10, "Weight": weight, "Terms": termss})
+
+topic_summary
